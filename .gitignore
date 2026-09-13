@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+Glyph.app/
+*.xcodeproj
+.DS_Store
+Resources/AppIcon.iconset/
