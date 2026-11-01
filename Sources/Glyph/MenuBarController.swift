@@ -1,5 +1,4 @@
 import AppKit
-import LaunchAtLogin
 
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
@@ -13,7 +12,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         UserDefaults.standard.register(defaults: [
             SettingsKeys.keepLineBreaks: true,
             SettingsKeys.showMenuBarIcon: true,
-            SettingsKeys.recognitionLanguage: SettingsKeys.automaticLanguage
+            SettingsKeys.recognitionLanguage: SettingsKeys.automaticLanguage,
+            SettingsKeys.showToast: true
         ])
 
         if UserDefaults.standard.bool(forKey: SettingsKeys.showMenuBarIcon) {
@@ -45,12 +45,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         statusItem = item
     }
 
-    private func hideStatusItem() {
-        guard let item = statusItem else { return }
-        NSStatusBar.system.removeStatusItem(item)
-        statusItem = nil
-    }
-
     // MARK: - Menu
 
     private func buildMenu() -> NSMenu {
@@ -66,8 +60,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         captureItem.target = self
         menu.addItem(captureItem)
 
-        menu.addItem(.separator())
-
         let historyItem = NSMenuItem(
             title: "History…",
             action: #selector(showHistory),
@@ -78,31 +70,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
 
-        let keepLineBreaksItem = NSMenuItem(
-            title: "Keep Line Breaks",
-            action: #selector(toggleKeepLineBreaks),
-            keyEquivalent: ""
-        )
-        keepLineBreaksItem.target = self
-        menu.addItem(keepLineBreaksItem)
-
-        let launchAtLoginItem = NSMenuItem(
-            title: "Launch at Login",
-            action: #selector(toggleLaunchAtLogin),
-            keyEquivalent: ""
-        )
-        launchAtLoginItem.target = self
-        menu.addItem(launchAtLoginItem)
-
-        let showIconItem = NSMenuItem(
-            title: "Show Menu Bar Icon",
-            action: #selector(toggleShowMenuBarIcon),
-            keyEquivalent: ""
-        )
-        showIconItem.target = self
-        menu.addItem(showIconItem)
-
-        menu.addItem(.separator())
+        // Launch at Login and Keep Line Breaks live in Settings now; keeping
+        // duplicates here meant two places to read the same state from.
 
         let settingsItem = NSMenuItem(
             title: "Settings…",
@@ -112,8 +81,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         settingsItem.keyEquivalentModifierMask = [.command]
         settingsItem.target = self
         menu.addItem(settingsItem)
-
-        menu.addItem(.separator())
 
         let quitItem = NSMenuItem(
             title: "Quit Glyph",
@@ -125,21 +92,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         menu.addItem(quitItem)
 
         return menu
-    }
-
-    func menuNeedsUpdate(_ menu: NSMenu) {
-        for item in menu.items {
-            switch item.action {
-            case #selector(toggleKeepLineBreaks):
-                item.state = UserDefaults.standard.bool(forKey: SettingsKeys.keepLineBreaks) ? .on : .off
-            case #selector(toggleLaunchAtLogin):
-                item.state = LaunchAtLogin.isEnabled ? .on : .off
-            case #selector(toggleShowMenuBarIcon):
-                item.state = UserDefaults.standard.bool(forKey: SettingsKeys.showMenuBarIcon) ? .on : .off
-            default:
-                break
-            }
-        }
     }
 
     // MARK: - Capture
@@ -189,6 +141,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         sound?.volume = 0.5
         sound?.play()
 
+        guard UserDefaults.standard.bool(forKey: SettingsKeys.showToast) else { return }
         ToastController.shared.show(
             systemImage: result.isBarcode ? "qrcode" : "text.viewfinder",
             text: result.value
@@ -202,6 +155,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         sound?.volume = 0.5
         sound?.play()
 
+        guard UserDefaults.standard.bool(forKey: SettingsKeys.showToast) else { return }
         ToastController.shared.show(systemImage: "exclamationmark.triangle", text: "No text or code found")
     }
 
@@ -217,37 +171,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         let controller = historyWindowController ?? HistoryWindowController()
         historyWindowController = controller
         controller.show()
-    }
-
-    // MARK: - Toggles
-
-    @objc private func toggleKeepLineBreaks() {
-        let current = UserDefaults.standard.bool(forKey: SettingsKeys.keepLineBreaks)
-        UserDefaults.standard.set(!current, forKey: SettingsKeys.keepLineBreaks)
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        LaunchAtLogin.isEnabled.toggle()
-    }
-
-    @objc private func toggleShowMenuBarIcon() {
-        let currentlyShown = UserDefaults.standard.bool(forKey: SettingsKeys.showMenuBarIcon)
-
-        if currentlyShown {
-            let alert = NSAlert()
-            alert.messageText = "Hide Menu Bar Icon?"
-            alert.informativeText = "To restore the icon later, simply launch Glyph again from your Applications folder."
-            alert.addButton(withTitle: "Hide Icon")
-            alert.addButton(withTitle: "Cancel")
-
-            guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-            UserDefaults.standard.set(false, forKey: SettingsKeys.showMenuBarIcon)
-            hideStatusItem()
-        } else {
-            UserDefaults.standard.set(true, forKey: SettingsKeys.showMenuBarIcon)
-            showStatusItem()
-        }
     }
 
     @objc private func quit() {

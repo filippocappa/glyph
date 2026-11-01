@@ -59,6 +59,11 @@ enum VisionProcessor {
             let textRequest = VNRecognizeTextRequest()
             textRequest.recognitionLevel = .accurate
             textRequest.usesLanguageCorrection = true
+            // Default minimum text height skips small glyphs like formula
+            // exponents/subscripts relative to the rest of the line; letting
+            // Vision look at smaller text helps (though Vision still isn't a
+            // math-formula OCR engine — it reads glyphs, not notation).
+            textRequest.minimumTextHeight = 0.01
             if let languageCode {
                 textRequest.recognitionLanguages = [languageCode]
                 if #available(macOS 13, *) {
@@ -94,6 +99,7 @@ enum VisionProcessor {
             let fallbackRequest = VNRecognizeTextRequest()
             fallbackRequest.recognitionLevel = .accurate
             fallbackRequest.usesLanguageCorrection = false
+            fallbackRequest.minimumTextHeight = 0.01
             if let languageCode {
                 fallbackRequest.recognitionLanguages = [languageCode]
             }

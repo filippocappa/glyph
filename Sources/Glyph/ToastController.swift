@@ -5,10 +5,18 @@ import SwiftUI
 /// panel near the top of the screen. Unlike `UNUserNotificationCenter`,
 /// nothing about this depends on Notification Center settings or the user
 /// having granted (and kept) notification permission. Clicking it expands
-/// to show the full captured text.
+/// to show more of the captured text.
+///
+/// The panel is a single fixed size for its whole lifetime, positioned once
+/// when shown. Expand/collapse only swaps the SwiftUI content inside it —
+/// nothing ever calls `setFrame` after the initial position, since doing
+/// that on every tap (based on a measured "ideal" size) was the source of a
+/// bad bug where the toast would drift/teleport across taps.
 @MainActor
 final class ToastController {
     static let shared = ToastController()
+
+    private static let panelSize = CGSize(width: 360, height: 220)
 
     private var panel: NSPanel?
     private var hostingView: NSHostingView<ToastView>?
@@ -16,12 +24,6 @@ final class ToastController {
     private var isExpanded = false
     private var currentImage = "text.viewfinder"
     private var currentText = ""
-
-    /// Top-center anchor point in screen coordinates. Every resize is
-    /// computed fresh from this single fixed point, rather than from the
-    /// panel's current (possibly still-animating) frame — that's what
-    /// caused the toast to drift/teleport when expanding repeatedly.
-    private var topAnchor: CGPoint = .zero
 
     private init() {}
 
@@ -34,8 +36,8 @@ final class ToastController {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
-        updateAnchor()
-        render(in: panel, animated: false)
+        position(panel)
+        updateContent(animated: false)
 
         panel.alphaValue = 0
         panel.orderFrontRegardless()
@@ -49,13 +51,14 @@ final class ToastController {
     }
 
     private func toggleExpanded() {
-        guard let panel else { return }
         isExpanded.toggle()
-        render(in: panel, animated: true)
+        updateContent(animated: true)
         scheduleDismiss(delay: isExpanded ? nil : 1.6)
     }
 
-    private func render(in panel: NSPanel, animated: Bool) {
+    private func updateContent(animated: Bool) {
+        guard let panel else { return }
+
         let rootView = ToastView(
             systemImage: currentImage,
             text: currentText,
@@ -63,35 +66,20 @@ final class ToastController {
             onTap: { [weak self] in self?.toggleExpanded() }
         )
 
-        let hosting: NSHostingView<ToastView>
-        if let existing = hostingView {
-            existing.rootView = rootView
-            hosting = existing
-        } else {
-            hosting = NSHostingView(rootView: rootView)
-            hostingView = hosting
-            panel.contentView = hosting
-        }
-
-        let fitting = hosting.fittingSize
-        let size = CGSize(width: max(fitting.width, 160), height: max(fitting.height, 40))
-        hosting.frame = CGRect(origin: .zero, size: size)
-
-        let newFrame = CGRect(
-            x: topAnchor.x - size.width / 2,
-            y: topAnchor.y - size.height,
-            width: size.width,
-            height: size.height
-        )
-
-        if animated {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.22
-                context.allowsImplicitAnimation = true
-                panel.animator().setFrame(newFrame, display: true)
+        if let hostingView {
+            if animated {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    hostingView.rootView = rootView
+                }
+            } else {
+                hostingView.rootView = rootView
             }
         } else {
-            panel.setFrame(newFrame, display: true)
+            let hosting = NSHostingView(rootView: rootView)
+            hosting.frame = CGRect(origin: .zero, size: Self.panelSize)
+            hosting.autoresizingMask = [.width, .height]
+            panel.contentView = hosting
+            hostingView = hosting
         }
     }
 
@@ -119,7 +107,7 @@ final class ToastController {
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 56),
+            contentRect: CGRect(origin: .zero, size: Self.panelSize),
             styleMask: [.nonactivatingPanel, .borderless],
             backing: .buffered,
             defer: false
@@ -134,9 +122,14 @@ final class ToastController {
         return panel
     }
 
-    private func updateAnchor() {
+    private func position(_ panel: NSPanel) {
         guard let screen = NSScreen.main else { return }
         let screenFrame = screen.visibleFrame
-        topAnchor = CGPoint(x: screenFrame.midX, y: screenFrame.maxY - 16)
+        let size = Self.panelSize
+        let origin = CGPoint(
+            x: screenFrame.midX - size.width / 2,
+            y: screenFrame.maxY - size.height - 16
+        )
+        panel.setFrame(CGRect(origin: origin, size: size), display: false)
     }
 }

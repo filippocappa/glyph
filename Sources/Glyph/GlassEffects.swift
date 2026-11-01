@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 extension View {
@@ -27,9 +28,9 @@ extension View {
     }
 }
 
-/// Full-window translucent backdrop (NSVisualEffectView) for windows that
-/// want the desktop to show through, matching the vibrancy used throughout
-/// System Settings.
+/// Translucent backdrop (NSVisualEffectView) for windows that want the
+/// desktop to show through, matching the vibrancy used throughout System
+/// Settings.
 struct VisualEffectBackground: NSViewRepresentable {
     var material: NSVisualEffectView.Material = .sidebar
     var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow

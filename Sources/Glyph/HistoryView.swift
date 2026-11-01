@@ -16,9 +16,11 @@ struct HistoryView: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
                 TextField("Search history", text: $searchText)
                     .textFieldStyle(.plain)
+                    .font(.system(size: 15))
                     .focused($searchFocused)
                 if !searchText.isEmpty {
                     Button {
@@ -30,10 +32,13 @@ struct HistoryView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
-
-            Divider().opacity(0.5)
+            .glassCard(cornerRadius: 14)
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+            .frame(maxWidth: .infinity)
 
             if filteredEntries.isEmpty {
                 Spacer()
@@ -56,20 +61,27 @@ struct HistoryView: View {
                     .padding(.vertical, 4)
                 }
                 .scrollIndicators(.hidden)
+                // The list takes every point the search field above doesn't,
+                // so it grows and shrinks with the window.
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: 360, height: 440)
-        .background(VisualEffectBackground(material: .sidebar))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // No traffic lights are visible on this window, so the content itself
+        // ignores the titlebar's safe-area inset too — otherwise the search
+        // bar sits under ~28pt of empty space meant for buttons that aren't
+        // there. The search bar's own top padding below is all the clearance
+        // it needs.
+        .ignoresSafeArea()
+        // HUD vibrancy, matching the titleless Spotlight-style panel this
+        // window is configured as. Ignoring the safe area lets it bleed
+        // all the way under the (hidden) titlebar instead of stopping short.
+        .background(VisualEffectBackground(material: .hudWindow).ignoresSafeArea())
         .onAppear { searchFocused = true }
     }
 
     private func row(for entry: HistoryEntry) -> some View {
-        RowButton(entry: entry, isCopied: copiedID == entry.id) {
+        RowButton(entry: entry, isCopied: copiedID == entry.id, highlight: searchText) {
             copy(entry)
         } onDelete: {
             store.remove(entry)
@@ -95,6 +107,7 @@ struct HistoryView: View {
 private struct RowButton: View {
     let entry: HistoryEntry
     let isCopied: Bool
+    let highlight: String
     let onCopy: () -> Void
     let onDelete: () -> Void
 
@@ -108,7 +121,7 @@ private struct RowButton: View {
                     .frame(width: 16)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.text)
+                    highlightedText(entry.text, query: highlight)
                         .lineLimit(2)
                         .truncationMode(.tail)
                         .foregroundStyle(.primary)
@@ -137,5 +150,22 @@ private struct RowButton: View {
             Button("Copy") { onCopy() }
             Button("Delete", role: .destructive) { onDelete() }
         }
+    }
+
+    /// Builds a `Text` with every case-insensitive occurrence of `query`
+    /// bolded and tinted, so a search result shows *why* it matched.
+    private func highlightedText(_ text: String, query: String) -> Text {
+        guard !query.isEmpty else { return Text(text) }
+
+        var result = Text("")
+        var remaining = Substring(text)
+
+        while let range = remaining.range(of: query, options: .caseInsensitive) {
+            result = result + Text(remaining[remaining.startIndex..<range.lowerBound])
+            result = result + Text(remaining[range]).bold().foregroundColor(.accentColor)
+            remaining = remaining[range.upperBound...]
+        }
+        result = result + Text(remaining)
+        return result
     }
 }
