@@ -11,7 +11,7 @@ and the text is on your clipboard. No telemetry, no Electron, no account.
 
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](#requirements)
 [![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)](https://swift.org)
-[![Version](https://img.shields.io/badge/version-0.2-blue)](Resources/Info.plist)
+[![Version](https://img.shields.io/badge/version-1.0-blue)](Resources/Info.plist)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 </div>
@@ -107,9 +107,7 @@ For a quick debug build without packaging, run `swift build`. Some features, lik
 | `HistoryStore.swift` | Capped (50), persisted capture log |
 | `HistoryView.swift` · `HistoryWindowController.swift` | Spotlight-style History panel |
 | `SettingsView.swift` · `SettingsWindowController.swift` | Settings window |
-| `ShortcutRecorderView.swift` | Custom global shortcut recorder |
 | `ToastController.swift` · `ToastView.swift` | Floating, expandable confirmation toast |
-| `AppWindow.swift` | `GlyphWindow`, which window managers can see, and activation helpers |
 | `GlassEffects.swift` | Liquid Glass and visual-effect helpers with pre-macOS 26 fallbacks |
 | `SettingsKeys.swift` · `KeyboardShortcuts+Name.swift` | `UserDefaults` keys and the default shortcut |
 
@@ -120,7 +118,7 @@ Scripts:
 
 ## Dependencies
 
-- [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) for global hotkey registration
+- [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) for global hotkeys and the recorder UI
 - [LaunchAtLogin](https://github.com/sindresorhus/LaunchAtLogin) for the login item
 
 Everything else is Apple frameworks: AppKit, SwiftUI and Vision.
